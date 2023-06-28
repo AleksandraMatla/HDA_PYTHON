@@ -1,0 +1,137 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import layers
+import seaborn as sns
+
+# Load files
+folderPath = "C:\\Users\\matla\\PycharmProjects\\pythonProject\\raw-accelerometry-data"  # Specify the folder path
+
+filenameListFile = 'participant_demog.csv'  # Name of the file containing the filenames
+
+# Read the file with filenames
+filenameTable = pd.read_csv(folderPath + '\\' + filenameListFile)
+
+# Extract the filenames from the first column
+fileNames = filenameTable.iloc[:, 0].values
+
+numFiles = len(fileNames)  # Get the number of files
+
+A = np.zeros((numFiles, 3))  # Initialize the result matrix
+
+for i in range(numFiles):
+    filePath = folderPath + '/' + fileNames[i]  # Create the full file path
+
+    # Load the data from the file
+    data = pd.read_csv(filePath + '.csv')
+
+    # Perform calculations on the loaded data
+    Array = data.values
+    Walking = np.sum(Array[:, 0] == 1)
+    Stairs_up = np.sum(Array[:, 0] == 3)
+    Stairs_down = np.sum(Array[:, 0] == 2)
+
+    A[i, :] = [Walking, Stairs_up, Stairs_down]
+# Calculate the sum of each column of A
+sum_A = np.sum(A, axis=0)
+
+# Plot the results
+X = ['Walking', 'Stairs up', 'Stairs down']
+fig, ax = plt.subplots()
+ax.bar(X, sum_A, linewidth=1.0)
+plt.show()
+
+# Initialize arrays to store time and action values
+time = [None] * numFiles
+actions = [None] * numFiles
+
+for i in range(numFiles):
+    filePath = folderPath + '/' + fileNames[i]  # Create the full file path
+
+    # Load the data from the file
+    data = pd.read_csv(filePath + '.csv')
+
+    # Extract time and action columns from the data
+    time[i] = data['time_s']
+    actions[i] = data['activity']
+
+    # Plot the actions versus time for the current file
+    plt.figure()
+    plt.scatter(time[i], actions[i], marker='.', color='k')
+    plt.title('Actions vs. Time - File: ' + fileNames[i])
+    plt.legend(['1 - Walking', '2 - Stairs down', '3 - Stairs up'])
+    plt.ylim([0, 3])
+    plt.xlabel('Time')
+    plt.ylabel('Action')
+
+plt.show()
+
+# Define the columns to extract
+columns = ['lw', 'lh', 'la', 'ra']
+axis_labels = ['x', 'y', 'z']
+
+# Create the subplots
+fig, axs = plt.subplots(2, 2)
+
+for i in range(3):
+    filePath = folderPath + '/' + fileNames[i]  # Create the full file path
+
+    # Load the data from the file
+    data = pd.read_csv(filePath + '.csv')
+
+    # Extract time column from the data
+    time = data['time_s']
+
+    # Iterate over the desired columns and create the scatter plots
+    for j in range(3):
+        axs[j // 2, j % 2].scatter(time, data[columns[j] + '_' + axis_labels[i]], marker='.')
+        axs[j // 2, j % 2].set_xlabel('Time')
+        axs[j // 2, j % 2].set_ylabel(columns[j] + ' Axis')
+
+plt.show()
+
+# Normalization
+normalizedTables = []
+
+for fileIndex in range(32):
+    filePath = folderPath + '/' + fileNames[fileIndex]  # Create the full file path
+
+    # Load the data from the file
+    data = pd.read_csv(filePath + '.csv')
+
+#####################################################
+# Assuming you have separate datasets for training, validation, and testing
+train_data = ...  # Your training data
+train_labels = ...  # Labels for training data
+
+val_data = ...  # Your validation data
+val_labels = ...  # Labels for validation data
+
+test_data = ...  # Your test data
+test_labels = ...  # Labels for test data
+
+
+######################################################
+
+
+
+# Define the CNN architecture
+
+model = tf.keras.Sequential([
+    # Add convolutional layers, pooling layers, and fully connected layers
+    # Specify appropriate activation functions, kernel sizes, and strides
+])
+
+# 3. Compile the model
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# 4. Train the model
+
+model.fit(train_data, train_labels, batch_size=32, epochs=10, validation_data=(val_data, val_labels))
+
+# 5. Evaluate the model
+
+test_loss, test_acc = model.evaluate(test_data, test_labels)
+print('Test accuracy:', test_acc)

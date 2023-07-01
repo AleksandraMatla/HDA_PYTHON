@@ -1,9 +1,9 @@
+import os
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import tensorflow as tf
-from tensorflow.keras import layers
 import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 
 # Load files
 folderPath = "C:\\Users\\matla\\PycharmProjects\\pythonProject\\raw-accelerometry-data"  # Specify the folder path
@@ -11,7 +11,7 @@ folderPath = "C:\\Users\\matla\\PycharmProjects\\pythonProject\\raw-accelerometr
 filenameListFile = 'participant_demog.csv'  # Name of the file containing the filenames
 
 # Read the file with filenames
-filenameTable = pd.read_csv(folderPath + '\\' + filenameListFile)
+filenameTable = pd.read_csv(os.path.join(folderPath, filenameListFile))
 
 # Extract the filenames from the first column
 fileNames = filenameTable.iloc[:, 0].values
@@ -21,7 +21,7 @@ numFiles = len(fileNames)  # Get the number of files
 A = np.zeros((numFiles, 3))  # Initialize the result matrix
 
 for i in range(numFiles):
-    filePath = folderPath + '/' + fileNames[i]  # Create the full file path
+    filePath = os.path.join(folderPath, fileNames[i])  # Create the full file path
 
     # Load the data from the file
     data = pd.read_csv(filePath + '.csv')
@@ -33,6 +33,7 @@ for i in range(numFiles):
     Stairs_down = np.sum(Array[:, 0] == 2)
 
     A[i, :] = [Walking, Stairs_up, Stairs_down]
+
 # Calculate the sum of each column of A
 sum_A = np.sum(A, axis=0)
 
@@ -41,13 +42,15 @@ X = ['Walking', 'Stairs up', 'Stairs down']
 fig, ax = plt.subplots()
 ax.bar(X, sum_A, linewidth=1.0)
 plt.show()
+plt.close() ########################################################
+
 
 # Initialize arrays to store time and action values
 time = [None] * numFiles
 actions = [None] * numFiles
 
 for i in range(numFiles):
-    filePath = folderPath + '/' + fileNames[i]  # Create the full file path
+    filePath = os.path.join(folderPath, fileNames[i])  # Create the full file path
 
     # Load the data from the file
     data = pd.read_csv(filePath + '.csv')
@@ -66,6 +69,8 @@ for i in range(numFiles):
     plt.ylabel('Action')
 
 plt.show()
+plt.close()##################################################################
+
 
 # Define the columns to extract
 columns = ['lw', 'lh', 'la', 'ra']
@@ -75,7 +80,7 @@ axis_labels = ['x', 'y', 'z']
 fig, axs = plt.subplots(2, 2)
 
 for i in range(3):
-    filePath = folderPath + '/' + fileNames[i]  # Create the full file path
+    filePath = os.path.join(folderPath, fileNames[i])  # Create the full file path
 
     # Load the data from the file
     data = pd.read_csv(filePath + '.csv')
@@ -90,48 +95,198 @@ for i in range(3):
         axs[j // 2, j % 2].set_ylabel(columns[j] + ' Axis')
 
 plt.show()
+plt.close()#################################################################
+
+
+######################################################################################
 
 # Normalization
-normalizedTables = []
+normalized_tables = []
 
-for fileIndex in range(32):
-    filePath = folderPath + '/' + fileNames[fileIndex]  # Create the full file path
+for file_index in range(1, 33):
+    filePath = os.path.join(folderPath, fileNames[file_index - 1])  # Create the full file path
 
     # Load the data from the file
     data = pd.read_csv(filePath + '.csv')
 
-#####################################################
-# Assuming you have separate datasets for training, validation, and testing
-train_data = ...  # Your training data
-train_labels = ...  # Labels for training data
+    # Create a new DataFrame to store the normalized columns
+    normalized_table = pd.DataFrame()
 
-val_data = ...  # Your validation data
-val_labels = ...  # Labels for validation data
+    # Normalize each column in the table
+    column_names = data.columns
+    for col_index in range(2, len(column_names)):
+        col_name = column_names[col_index]
+        normalized_col_name = 'Normalized' + col_name
+        normalized_table[normalized_col_name] = (data[col_name] - data[col_name].mean()) / data[col_name].std()
 
-test_data = ...  # Your test data
-test_labels = ...  # Labels for test data
+    # Store the normalized table in the list
+    normalized_tables.append(normalized_table)
+
+# Framing
+framed_data = []
+
+# Define the frame size and overlap
+frame_size = 50  # Specify the frame size (number of rows per frame)
+overlap = 25  # Specify the overlap (number of overlapping rows between frames)
+
+for file_index in range(32):
+    # Perform framing on the normalized table
+    normalized_table = normalized_tables[file_index]
+    num_frames = int((len(normalized_table) - frame_size) / overlap) + 1
+    frames = []
+    for frame_index in range(num_frames):
+        start_row = frame_index * overlap
+        end_row = start_row + frame_size
+        frames.append(normalized_table.iloc[start_row:end_row])
+
+    # Store the framed data in the list
+    framed_data.append(frames)
+
+# Train and test data
+num_classes = 3  # Specify the number of classes in your dataset
+
+# Concatenate all the framed data into a single array
+data = np.concatenate(framed_data, axis=0)
+num_frames = data.shape[0]
+labels = np.tile(np.arange(1, num_classes + 1), num_frames // num_classes)
+
+num_frames = min(num_frames, len(labels))
 
 
-######################################################
+# Randomly shuffle the data
+idx = np.random.permutation(num_frames)
+shuffled_data = data[idx]
+shuffled_labels = labels[idx][:num_frames]
+
+
+# Trim the shuffled data and labels arrays to the valid indices
+shuffled_data = shuffled_data[:num_frames]
+shuffled_labels = shuffled_labels[:num_frames]
 
 
 
-# Define the CNN architecture
+# Split the data into train and test sets
+train_ratio = 0.8  # Specify the ratio of training data
+num_train = round(train_ratio * num_frames)
+train_data = shuffled_data[:num_train]
+train_labels = shuffled_labels[:num_train]
+test_data = shuffled_data[num_train:]
+test_labels = shuffled_labels[num_train:]
 
+
+#####################################################################################
+#####################################################################################
+#####################################################################################
+#####################################################################################
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import layers
+
+# ... Rest of the code ...
+
+# Reshape the input data for CNN
+input_shape = train_data[0].shape
+train_data = train_data.reshape(-1, input_shape[0], input_shape[1], 1)
+test_data = test_data.reshape(-1, input_shape[0], input_shape[1], 1)
+
+# Convert labels to one-hot encoding
+train_labels = tf.keras.utils.to_categorical(train_labels - 1, num_classes)
+test_labels = tf.keras.utils.to_categorical(test_labels - 1, num_classes)
+
+# Create a CNN model
 model = tf.keras.Sequential([
-    # Add convolutional layers, pooling layers, and fully connected layers
-    # Specify appropriate activation functions, kernel sizes, and strides
+    layers.Conv2D(32, (3, 3), activation='relu', input_shape=(input_shape[0], input_shape[1], 1)),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(num_classes, activation='softmax')
 ])
 
-# 3. Compile the model
+# ... Rest of the code ...
 
+
+# ... Rest of the code ...
+
+
+# ... Rest of the code ...
+
+
+# Compile the model
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-# 4. Train the model
+# Train the model
+history = model.fit(train_data, train_labels, validation_data=(test_data, test_labels), epochs=10, batch_size=32)
 
-model.fit(train_data, train_labels, batch_size=32, epochs=10, validation_data=(val_data, val_labels))
+# Evaluate the model
+test_loss, test_accuracy = model.evaluate(test_data, test_labels)
+print("Test Loss:", test_loss)
+print("Test Accuracy:", test_accuracy)
 
-# 5. Evaluate the model
 
-test_loss, test_acc = model.evaluate(test_data, test_labels)
-print('Test accuracy:', test_acc)
+# Predict labels using the trained model
+predicted_labels = np.argmax(model.predict(test_data), axis=1)
+
+# Convert one-hot encoded true labels back to categorical labels
+true_labels = np.argmax(test_labels, axis=1)
+
+# Compute the confusion matrix
+cm = confusion_matrix(true_labels, predicted_labels)
+
+# Plot the confusion matrix as a heatmap
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False)
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('Confusion Matrix')
+plt.show()
+
+#################################################
+# Reshape the input data for RNN
+input_shape = train_data[0].shape
+train_data = train_data.reshape(-1, input_shape[0], input_shape[1])
+test_data = test_data.reshape(-1, input_shape[0], input_shape[1])
+
+# Convert labels to one-hot encoding
+train_labels = tf.keras.utils.to_categorical(train_labels - 1, num_classes)
+test_labels = tf.keras.utils.to_categorical(test_labels - 1, num_classes)
+
+# Create an RNN model
+model = tf.keras.Sequential([
+    layers.SimpleRNN(64, input_shape=(input_shape[0], input_shape[1])),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(num_classes, activation='softmax')
+])
+
+# Compile the model
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+history = model.fit(train_data, train_labels, validation_data=(test_data, test_labels), epochs=10, batch_size=32)
+
+# Evaluate the model
+test_loss, test_accuracy = model.evaluate(test_data, test_labels)
+print("Test Loss:", test_loss)
+print("Test Accuracy:", test_accuracy)
+
+# Predict labels using the trained model
+predicted_labels = np.argmax(model.predict(test_data), axis=1)
+
+# Convert one-hot encoded true labels back to categorical labels
+true_labels = np.argmax(test_labels, axis=1)
+
+# Compute the confusion matrix
+cm = confusion_matrix(true_labels, predicted_labels)
+
+# Plot the confusion matrix as a heatmap
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False)
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('Confusion Matrix')
+plt.show()
+
